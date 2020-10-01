@@ -1,0 +1,61 @@
+# Create the our dict
+our_vars = dict()
+lib_folder = '../'
+lib_folder_scons = '#/' + lib_folder
+our_vars['IP_BIN_DIR'] = './'
+our_vars['CRAYON_SF_BASE'] = lib_folder_scons
+our_vars['PROG_NAME'] = 'Crayon-Savefile-Demo'
+our_vars['DEBUG'] = False
+
+# Import our helper functions
+import sys
+sys.path.insert(1, lib_folder)	# This will put our path 2nd, right behind the local path
+import builder_functions as bf
+
+# Create our envs
+env = bf.create_builders(our_vars)
+
+# Build the lib/nodes
+lib = SConscript(lib_folder + 'SConscript', exports = 'env')
+
+
+# ------------------------------------------------------------------------
+
+
+# The actual building
+import sys
+
+
+lib_path = lib_folder + 'lib/'
+
+env['BUILD_DIR'] = 'build/'
+env['PROG_DIR'] = 'program/'
+
+# !!! NOTE !!!: If you are looking at this SConstruct file to "learn how to use it" or "see a good
+# example", this part right here is NOT the best practice. What you should actually do is have an
+# SConscript file in code/ and call it with variant_dir parameter set to $BUILD_DIR. Then that
+# script contains the code below this VariantDir call. The way its currently setup can be confusing
+# and error-prone. The reasons I'm not doing that here is because I want everything in one file and
+# people might be confused why an SConscript file is in their code folder, so this way people can
+# just see this SConstruct file and know "That's the build file".
+env.VariantDir('$BUILD_DIR', '$CODE_DIR', duplicate=0)	# Kind of moves over the processing for the code
+														# directory to our build dir duplicate=0 means it
+														# won't duplicate the src files
+
+src_files = env.Glob('$BUILD_DIR/*.c') # We have to specify the build path instead of the real one
+rom_img = env.Command('$BUILD_DIR/romdisk_boot.img', 'romdisk/',
+	'$KOS_GENROMFS -f $TARGET -d $SOURCE')
+src_files.append(env.Command('$BUILD_DIR/romdisk_boot.o', rom_img,
+	'$KOS_BASE/utils/bin2o/bin2o $SOURCE romdisk_boot $TARGET'))
+
+# The source files list can contain c files and objects
+elf = env.Program('$BUILD_DIR/${PROG_NAME}', src_files, LIBS = lib, LIBPATH = lib_path)
+binary = env.Command('$BUILD_DIR/${PROG_NAME}.bin', elf,
+	'sh-elf-objcopy -R .stack -O binary $SOURCE $TARGET')
+scrambled = env.Command('$CDFS_DIR/1ST_READ.BIN', binary,
+	'$KOS_BASE/utils/scramble/scramble $SOURCE $TARGET')
+# Iso depends on cdfs_scrambled, but we pass in "cdfs/"" instead of the source/s
+iso = env.Command('$BUILD_DIR/${PROG_NAME}.iso', scrambled,
+	'genisoimage -G $IP_BIN_DIR -C 0,11702 -J -l -r -o $TARGET $CDFS_DIR')
+cdi = env.Command('$PROG_DIR/${PROG_NAME}.cdi', iso,
+	'cdi4dc $SOURCE $TARGET')

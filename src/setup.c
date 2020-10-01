@@ -1,6 +1,4 @@
-#include <setup.h>
-
-void crayon_vmu_display_icon(uint8_t vmu_bitmap, void * icon);
+#include "setup.h"
 
 //We use a double pointer because we want to modify the pointer itself with malloc
 int16_t setup_vmu_icon_load(uint8_t ** vmu_lcd_icon, char * icon_path){

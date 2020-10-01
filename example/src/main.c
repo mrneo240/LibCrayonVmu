@@ -4,62 +4,9 @@
 
 #include <dc/pvr.h>
 
-#include <kos/fs_romdisk.h> //For romdisk swapping
+#include <crayon_vmu/setup.h>
 
 #include "extra_structs.h"
-#include <setup.h>
-
-#define CRAYON_DEBUG 0
-#define CRAYON_BOOT_MODE 0	//Load assets from cd dir instead of sd
-
-#if CRAYON_BOOT_MODE == 1
-	//For mounting the sd dir
-	#include <dc/sd.h>
-	#include <kos/blockdev.h>
-	#include <ext2/fs_ext2.h>
-#endif
-
-#if CRAYON_BOOT_MODE == 1
-	#define MNT_MODE FS_EXT2_MOUNT_READWRITE	//Might manually change it so its not a define anymore
-
-	static void unmount_ext2_sd(){
-		fs_ext2_unmount("/sd");
-		fs_ext2_shutdown();
-		sd_shutdown();
-	}
-
-	static int mount_ext2_sd(){
-		kos_blockdev_t sd_dev;
-		uint8 partition_type;
-
-		// Initialize the sd card if its present
-		if(sd_init()){
-			return 1;
-		}
-
-		// Grab the block device for the first partition on the SD card. Note that
-		// you must have the SD card formatted with an MBR partitioning scheme
-		if(sd_blockdev_for_partition(0, &sd_dev, &partition_type)){
-			return 2;
-		}
-
-		// Check to see if the MBR says that we have a Linux partition
-		if(partition_type != 0x83){
-			return 3;
-		}
-
-		// Initialize fs_ext2 and attempt to mount the device
-		if(fs_ext2_init()){
-			return 4;
-		}
-
-		//Mount the SD card to the sd dir in the VFS
-		if(fs_ext2_mount("/sd", &sd_dev, MNT_MODE)){
-			return 5;
-		}
-		return 0;
-	}
-#endif
 
 pvr_ptr_t font_tex;
 uint8_t error = 0;
@@ -77,7 +24,7 @@ void font_init(){
 	//Load the file into memory (Well, we have a baked-in romdisk...but still fine anyways)
 	uint16_t header_size = 265;
 	uint16_t file_size = 4361;
-	FILE * texture_file = fopen("Save/fixed-fiction.pbm", "rb");
+	FILE * texture_file = fopen("/rd/fixed-fiction.pbm", "rb");
 	if(!texture_file){error |= (1 << 0);}
 	fseek(texture_file, header_size, SEEK_SET);	//Move file pointer forwards 0x109 or 265 bytes
 	char * wfont = (char *)malloc(file_size - header_size);
@@ -176,19 +123,9 @@ void draw_string(float x, float y, float z, uint8_t a, uint8_t r, uint8_t g, uin
 	}
 }
 
-uint8_t crayon_memory_mount_romdisk(char *filename, char *mountpoint){
-	void *buffer;
-	ssize_t size = fs_load(filename, &buffer); // Loads the file "filename" into RAM
-
-	if(size == -1){
-		return 1;
-	}
-	
-	fs_romdisk_mount(mountpoint, buffer, 1); // Now mount that file as a romdisk, buffer will be freed when romdisk is unmounted
-	return 0;
-}
-
-
+//Baked Romdisk
+extern uint8 romdisk_boot[];
+KOS_INIT_ROMDISK(romdisk_boot);
 
 int main(){
 	#if CRAYON_BOOT_MODE == 1
@@ -208,24 +145,15 @@ int main(){
 		"ProtoSaveDemo2\0", "SAVE_DEMO.s\0");
 
 	pvr_init_defaults();	//Init kos
-	
-	//Load the VMU icon data
-	#if CRAYON_BOOT_MODE == 1
-		crayon_memory_mount_romdisk("/sd/sf_icon.img", "/Save");
-	#else
-		crayon_memory_mount_romdisk("/cd/sf_icon.img", "/Save");
-	#endif
 
 	uint8_t * vmu_lcd_icon = NULL;
-	setup_vmu_icon_load(&vmu_lcd_icon, "/Save/LCD.bin");
+	setup_vmu_icon_load(&vmu_lcd_icon, "/rd/LCD.bin");
 
 	
-	crayon_savefile_load_icon(&savefile_details, "/Save/image.bin", "/Save/palette.bin");
-	uint8_t res = crayon_savefile_load_eyecatch(&savefile_details, "Save/eyecatch3.bin");	//Must be called AFTER init
+	crayon_savefile_load_icon(&savefile_details, "/rd/image.bin", "/rd/palette.bin");
+	uint8_t res = crayon_savefile_load_eyecatch(&savefile_details, "/rd/eyecatch3.bin");	//Must be called AFTER init
 
 	font_init();
-
-	fs_romdisk_unmount("/SaveFile");
 
 	//Apply the VMU LCD icon (Apparently this is automatic if your savefile is an ICONDATA.VMS)
 	setup_vmu_icon_apply(vmu_lcd_icon, savefile_details.valid_vmu_screens);
@@ -270,7 +198,6 @@ int main(){
 	uint16_t save_res = 0;
 	if(savefile_details.valid_memcards){
 		save_res = crayon_savefile_save(&savefile_details);
-		savefile_details.valid_saves = crayon_savefile_get_valid_saves(&savefile_details);
 	}
 
 	#if CRAYON_BOOT_MODE == 1

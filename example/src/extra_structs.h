@@ -1,7 +1,7 @@
 #ifndef MS_EXTRA_STRUCTS_H
 #define MS_EXTRA_STRUCTS_H
 
-#include "savefile.h"
+#include <crayon_vmu/savefile.h>
 
 //This file exist just to make the main file a little bit more clean
 
