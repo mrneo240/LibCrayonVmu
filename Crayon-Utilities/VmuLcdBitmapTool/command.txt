@@ -1,0 +1,1 @@
+./vmulcdbitmaptool  --input openmenu_lcd_icon.png  --output-binary openmenu_lcd.bin --invert

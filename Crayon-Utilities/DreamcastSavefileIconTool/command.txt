@@ -1,0 +1,1 @@
+./dcsaveicontool --input-image openmenu_vmu_icon.png --output-image openmenu_vmu.bin --output-palette openmenu_vmu.pal --preview out.png

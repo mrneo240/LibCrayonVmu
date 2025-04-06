@@ -1,0 +1,6 @@
+*.bin
+*.png
+*.o
+DreamcastSavefileIconTool
+.sconsign.dblite
+
