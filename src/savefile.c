@@ -117,7 +117,6 @@ void crayon_savefile_load_icon(crayon_savefile_details_t * savefile_details, cha
 	fread(savefile_details->icon, size_data, 1, icon_data_file);
 	fclose(icon_data_file);
 
-
 	//--------------------------------
 
 	FILE * icon_palette_file;

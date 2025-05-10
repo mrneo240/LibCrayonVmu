@@ -36,7 +36,6 @@ all: $(BUILD_DIR)/$(TARGET_LIB) example
 
 lib: $(BUILD_DIR)/$(TARGET_LIB)
 
-
 $(BUILD_DIR)/$(TARGET_LIB): $(OBJS)
 	@echo -e "\n+  $@"
 	@$(AR) rcs $@ $(OBJS)

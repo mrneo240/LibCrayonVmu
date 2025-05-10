@@ -184,16 +184,14 @@ uint8_t crayon_memory_mount_romdisk(char *filename, char *mountpoint){
 	if(size == -1){
 		return 1;
 	}
-	
+
 	fs_romdisk_mount(mountpoint, buffer, 1); // Now mount that file as a romdisk, buffer will be freed when romdisk is unmounted
 	return 0;
 }
 
-
-
 int main(){
 	#if CRAYON_BOOT_MODE == 1
-		int sdRes = mount_ext2_sd();	//This function should be able to mount an ext2 formatted sd card to the /sd dir	
+		int sdRes = mount_ext2_sd();	//This function should be able to mount an ext2 formatted sd card to the /sd dir
 		if(sdRes == 0){
 			MS_options.sd_present = 1;
 		}
@@ -209,7 +207,7 @@ int main(){
 		"ProtoSaveDemo2\0", "SAVE_DEMO.s\0");
 
 	pvr_init_defaults();	//Init kos
-	
+
 	//Load the VMU icon data
 	#if CRAYON_BOOT_MODE == 1
 		crayon_memory_mount_romdisk("/sd/sf_icon.img", "/Save");
@@ -220,7 +218,6 @@ int main(){
 	uint8_t * vmu_lcd_icon = NULL;
 	setup_vmu_icon_load(&vmu_lcd_icon, "/Save/LCD.bin");
 
-	
 	crayon_savefile_load_icon(&savefile_details, "/Save/image.bin", "/Save/palette.bin");
 	uint8_t res = crayon_savefile_load_eyecatch(&savefile_details, "Save/eyecatch3.bin");	//Must be called AFTER init
 
@@ -317,7 +314,6 @@ int main(){
 				draw_string(30, 30, 1, 255, 255, 216, 0, "Couldn't write to VMU", 2, 2); break;
 		}
 		pvr_list_finish();
-
 
 		pvr_scene_finish();
 	}
