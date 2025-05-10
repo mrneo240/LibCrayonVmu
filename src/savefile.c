@@ -2,37 +2,42 @@
 
 //Note this assumes the vmu chosen is valid
 uint8_t crayon_savefile_check_for_save(crayon_savefile_details_t * savefile_details, int8_t savefile_port, int8_t savefile_slot){
-	vmu_pkg_t pkg;
-	uint8 *pkg_out;
+	uint8 *hdr_out;
 	int pkg_size;
-	FILE *fp;
+	file_t f;
 	char savename[32];
 
-	sprintf(savename, "/vmu/%c%d/", savefile_port + 97, savefile_slot);
-	strcat(savename, savefile_details->save_name);
+	//Only 25 chars allowed at max (26 if you include '\0')
+	sprintf(savename, "/vmu/%c%d/", savefile_port + 97, savefile_slot);	//port gets converted to a, b, c or d. unit is unit
+	strlcat(savename, savefile_details->save_name, 32);
 
-	//File DNE
-	if(!(fp = fopen(savename, "rb"))){
+	f = fs_open(savename, O_RDONLY | O_META);
+	if(f == FILEHND_INVALID){
 		return 1;
 	}
 
-	fseek(fp, 0, SEEK_SET);
-	fseek(fp, 0, SEEK_END);
-	pkg_size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
+	pkg_size = fs_total(f);
+	if(pkg_size < 64){
+		return 1;
+	}
 
-	pkg_out = (uint8 *)malloc(pkg_size);
-	fread(pkg_out, pkg_size, 1, fp);
-	fclose(fp);
+	hdr_out = (uint8 *)malloc(64);
 
-	vmu_pkg_parse(pkg_out, &pkg);
+	ssize_t read_bytes = fs_read(f, hdr_out, 64);
+	if(read_bytes != pkg_size){
+		return 1;
+	}
+	fs_close(f);
 
-	free(pkg_out);
+	const char * hdr_app_id = (const char*)(hdr_out+16+32);
+	int app_pid_compare = strcmp(hdr_app_id, savefile_details->app_id);
+	free(hdr_out);
 
 	//If the IDs don't match, then thats an error
-	if(strcmp(pkg.app_id, savefile_details->app_id)){
+	if(app_pid_compare){
 		return 2;
 	}
+
 	return 0;
 }
 
@@ -296,7 +301,7 @@ uint8_t crayon_savefile_load(crayon_savefile_details_t * savefile_details){
 	vmu_pkg_t pkg;
 	uint8 *pkg_out;
 	int pkg_size;
-	FILE *fp;
+	file_t f;
 	char savename[32];
 
 	//If you call everying in the right order, this is redundant. But just incase you didn't, here it is
@@ -306,25 +311,26 @@ uint8_t crayon_savefile_load(crayon_savefile_details_t * savefile_details){
 		return 1;
 	}
 
-	//Only 25 chara allowed at max (26 if you include '\0')
+	//Only 25 chars allowed at max (26 if you include '\0')
 	sprintf(savename, "/vmu/%c%d/", savefile_details->savefile_port + 97, savefile_details->savefile_slot);	//port gets converted to a, b, c or d. unit is unit
-	strcat(savename, savefile_details->save_name);
+	strlcat(savename, savefile_details->save_name, 32);
 
-	//If the savefile DNE, this will fail
-	if(!(fp = fopen(savename, "rb"))){
+	f = fs_open(savename, O_RDONLY | O_META);
+	if(f == FILEHND_INVALID){
 		return 2;
 	}
 
-	fseek(fp, 0, SEEK_SET);
-	fseek(fp, 0, SEEK_END);
-	pkg_size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
+	pkg_size = fs_total(f);
 
 	pkg_out = (uint8 *)malloc(pkg_size);
-	fread(pkg_out, pkg_size, 1, fp);
-	fclose(fp);
+	ssize_t read_bytes = fs_read(f, pkg_out, pkg_size);
 
-	vmu_pkg_parse(pkg_out, &pkg);
+	if(read_bytes != pkg_size){
+		return 1;
+	}
+	fs_close(f);
+
+	vmu_pkg_parse(pkg_out, pkg_size, &pkg);
 
 	//Read the pkg data into my struct
 	memcpy(savefile_details->savefile_data, pkg.data, savefile_details->savefile_size);	//Last param is num of bytes and sizeof returns in bytes
@@ -347,9 +353,8 @@ uint8_t crayon_savefile_save(crayon_savefile_details_t * savefile_details){
 	}
 
 	vmu_pkg_t pkg;
-	uint8 *pkg_out, *data;	//pkg_out is allocated in vmu_pkg_build
+	uint8 *pkg_out, *data;
 	int pkg_size;
-	FILE *fp;
 	file_t f;
 	char savename[32];
 	maple_device_t *vmu;
@@ -370,7 +375,7 @@ uint8_t crayon_savefile_save(crayon_savefile_details_t * savefile_details){
 	}
 	memcpy(data, savefile_details->savefile_data, savefile_details->savefile_size);
 
-	sprintf(pkg.desc_long, savefile_details->desc_long);
+	strlcpy(pkg.desc_long, savefile_details->desc_long, sizeof(pkg.desc_long));
 	strlcpy(pkg.desc_short, savefile_details->desc_short, 16);
 	strlcpy(pkg.app_id, savefile_details->app_id, 16);
 	pkg.icon_cnt = savefile_details->icon_anim_count;
@@ -387,7 +392,7 @@ uint8_t crayon_savefile_save(crayon_savefile_details_t * savefile_details){
 	vmu_pkg_build(&pkg, &pkg_out, &pkg_size);
 
 	//Check if a file exists with that name, since we'll overwrite it.
-	f = fs_open(savename, O_RDONLY);
+	f = fs_open(savename, O_RDONLY | O_META);
 	if(f != FILEHND_INVALID){
 		int fs_size = fs_total(f);
 		blocks_freed = crayon_savefile_bytes_to_blocks(fs_size);;
@@ -396,25 +401,23 @@ uint8_t crayon_savefile_save(crayon_savefile_details_t * savefile_details){
 
 	//Make sure there's enough free space on the VMU.
 	if(vmufs_free_blocks(vmu) + blocks_freed < crayon_savefile_bytes_to_blocks(pkg_size)){
-		free(pkg_out);
 		free(data);
 		return 4;
 	}
 
+	fs_unlink(savename);
+	f = fs_open(savename, O_WRONLY);
+
 	//Can't open file for some reason
-	if(!(fp = fopen(savename, "wb"))){
-		free(pkg_out);
+	if(f == FILEHND_INVALID){
 		free(data);
 		return 5;
 	}
+	fs_vmu_set_header(f, &pkg);
+	fs_write(f, data, filesize);
 
-	if(fwrite(pkg_out, 1, pkg_size, fp) != (size_t)pkg_size){
-		rv = 6;
-	}
+	fs_close(f);
 
-	fclose(fp);
-
-	free(pkg_out);
 	free(data);
 
 	return rv;

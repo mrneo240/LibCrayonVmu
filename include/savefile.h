@@ -10,6 +10,7 @@
 #include <dc/vmu_pkg.h>
 #include <dc/vmufs.h>
 #include <kos/fs.h>
+#include <dc/fs_vmu.h>
 
 //The struct that contains all of a save file info. This is useful for passing
 //by reference into a function and if you want to modify the save file data easily
