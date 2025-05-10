@@ -62,9 +62,11 @@ echo-%:
 #include $(KOS_BASE)/Makefile.rules
 
 # create cdi image from CDFS_DIR
-$(TARGET).cdi: $(SCRAMBLED) $(ROMDISK_IMGS)
-	mkisofs -G $(IPBIN) -C 0,11702 -J -l -r -o $(TARGET).iso $(CDFS_DIR)
-	cdi4dc $(TARGET).iso $(TARGET).cdi
+$(TARGET).cdi: $(TARGET).elf $(ROMDISK_IMGS)
+	mkdcdisc -D $(CDFS_DIR) -e $(TARGET).elf -N -o $(TARGET).cdi
+#$(TARGET).cdi: $(SCRAMBLED) $(ROMDISK_IMGS)
+#	mkisofs -G $(IPBIN) -C 0,11702 -J -l -r -o $(TARGET).iso $(CDFS_DIR)
+#	cdi4dc $(TARGET).iso $(TARGET).cdi
 
 # create SCRAMBLED executable from elf
 $(SCRAMBLED): $(CDFS_DIR) $(TARGET).elf

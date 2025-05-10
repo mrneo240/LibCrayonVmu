@@ -8,6 +8,7 @@
 
 #include "extra_structs.h"
 #include <setup.h>
+#include <arch/arch.h>
 
 #define CRAYON_DEBUG 0
 #define CRAYON_BOOT_MODE 0	//Load assets from cd dir instead of sd
@@ -324,6 +325,9 @@ int main(){
 	crayon_savefile_free_icon(&savefile_details);
 	crayon_savefile_free_eyecatch(&savefile_details);
 	pvr_mem_free(font_tex);
+
+	arch_set_exit_path(ARCH_EXIT_RETURN);
+	arch_exit();
 
 	return 0;
 }
