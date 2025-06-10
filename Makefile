@@ -30,17 +30,17 @@ AR = sh-elf-ar
 
 CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
 
-default: $(BUILD_DIR)/$(TARGET_LIB)
+default: lib/$(TARGET_LIB) $(BUILD_DIR)/$(TARGET_LIB)
 
-all: $(BUILD_DIR)/$(TARGET_LIB) example
+all: lib/$(TARGET_LIB) $(BUILD_DIR)/$(TARGET_LIB) example 
 
-lib: $(BUILD_DIR)/$(TARGET_LIB)
+lib: lib/$(TARGET_LIB) $(BUILD_DIR)/$(TARGET_LIB)
 
 $(BUILD_DIR)/$(TARGET_LIB): $(OBJS)
 	@echo -e "\n+  $@"
 	@$(AR) rcs $@ $(OBJS)
 	@$(MKDIR_P) $(dir $@) lib
-	@$(CP_U) $@ lib
+#	@$(CP_U) $@ lib
 
 $(BUILD_DIR)/%.s.o: %.s
 	$(MKDIR_P) $(dir $@)
@@ -57,6 +57,9 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 
 vmu_example:
 	@$(MAKE) -C example all
+	
+lib/$(TARGET_LIB): $(BUILD_DIR)/$(TARGET_LIB)
+	cp $< $@
 
 .PHONY: clean
 
@@ -66,4 +69,12 @@ clean:
 -include $(DEPS)
 
 MKDIR_P ?= mkdir -p
-CP_U ?= cp -u
+#CP_U ?= cp -u
+
+# Macos - shell
+#if [[ File.a -nt File.b ]]; then
+#   cp File.a File.b
+#fi
+# Macos - Make
+#File.b: File.a
+#        cp ﻿File.a File.b

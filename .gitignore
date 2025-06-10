@@ -43,3 +43,7 @@ build*
 *.cdi
 *.elf
 *.img
+
+.qtcreator*
+.vscode*
+

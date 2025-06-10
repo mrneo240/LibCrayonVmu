@@ -1,2 +1,2 @@
 # LibCrayonVmu
-from Protofall @ https://github.com/Protofall/Homebrew-Tests/
+from Protofall @ https://gitlab.com/Protofall/Homebrew-Tests/
